@@ -11,4 +11,3 @@ The page covers ingestion, PySpark cleaning, gold table modeling and job orchest
 ---
 🌐 **Want to see more projects?** Visit my portfolio: [prashant-portfolio-da.vercel.app](https://prashant-portfolio-da.vercel.app/)
 
-Built by **Prashant Singh Chauhan** · [@pcpc466](https://github.com/pcpc466)
