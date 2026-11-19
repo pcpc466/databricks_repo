@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Databricks Lakehouse — Medallion ETL Pipeline | Prashant Singh Chauhan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0f17;--panel:#121826;--panel2:#0f1520;--line:#1f2a3c;--text:#e6ebf3;--muted:#93a1b8;
+  --bronze:#cd8a4b;--silver:#b8c4d6;--gold:#f2c14e;--accent:#ff5f46;--blue:#5aa9ff;--green:#4fd1a1;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.7 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px}
+header.hero{padding:72px 0 40px;border-bottom:1px solid var(--line);background:radial-gradient(1200px 400px at 20% -10%,rgba(255,95,70,.14),transparent),radial-gradient(900px 400px at 90% 0,rgba(242,193,78,.10),transparent)}
+.eyebrow{font:500 13px/1 'JetBrains Mono',monospace;color:var(--accent);letter-spacing:.08em;text-transform:uppercase}
+h1{font-size:clamp(32px,5vw,48px);line-height:1.12;margin:14px 0 16px;font-weight:800;letter-spacing:-.02em}
+.lede{font-size:19px;color:var(--muted);max-width:720px;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 0}
+.chip{font:500 12.5px/1 'JetBrains Mono',monospace;padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--silver)}
+.btns{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:10px;font-weight:600;font-size:14.5px}
+.btn.primary{background:var(--accent);color:#fff}.btn.ghost{border:1px solid var(--line);color:var(--text)}
+.btn:hover{text-decoration:none;filter:brightness(1.08)}
+nav.toc{position:sticky;top:0;z-index:5;background:rgba(11,15,23,.88);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:22px;overflow-x:auto;padding-top:14px;padding-bottom:14px}
+nav.toc a{color:var(--muted);font-size:14px;white-space:nowrap}nav.toc a:hover{color:var(--text);text-decoration:none}
+section{padding:56px 0;border-bottom:1px solid var(--line)}
+h2{font-size:28px;margin:0 0 6px;letter-spacing:-.01em}
+h2 .n{font:500 14px 'JetBrains Mono',monospace;color:var(--accent);margin-right:10px;vertical-align:middle}
+h3{font-size:18.5px;margin:34px 0 8px}
+p{margin:10px 0;color:#cfd7e4}
+.sub{color:var(--muted);margin:0 0 20px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:28px 0 0}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.stat b{display:block;font-size:28px;font-weight:800}.stat span{font-size:13px;color:var(--muted)}
+.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:stretch;gap:10px;margin:26px 0 8px}
+.node{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;border-top:3px solid var(--c)}
+.node h4{margin:0 0 6px;font-size:15px;color:var(--c)}
+.node ul{margin:0;padding-left:16px;font-size:13px;color:var(--muted);line-height:1.6}
+.node code{font-size:12px}
+.arrow{align-self:center;color:var(--muted);font-size:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:16px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rule{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.rule b{display:block;font-size:14.5px;margin-bottom:4px}.rule span{font-size:14px;color:var(--muted)}
+code{font-family:'JetBrains Mono',monospace;font-size:.88em;background:#1a2233;padding:2px 6px;border-radius:5px;color:#ffd7a8}
+.code{position:relative;margin:14px 0 6px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0d1219}
+.code .bar{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#111827;border-bottom:1px solid var(--line);font:500 12px 'JetBrains Mono',monospace;color:var(--muted)}
+.code .bar .lang{color:var(--accent)}
+.code button{font:500 11.5px 'JetBrains Mono',monospace;background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:3px 9px;cursor:pointer}
+.code button:hover{color:var(--text)}
+pre{margin:0;padding:16px 18px;overflow-x:auto;font:13.5px/1.65 'JetBrains Mono',monospace;color:#d7e0ee}
+pre code{background:none;padding:0;color:inherit;font-size:inherit}
+.k{color:#ff7ab2}.s{color:#9ee493}.c{color:#6b7a92;font-style:italic}.f{color:#7cc4ff}.nm{color:#f8c35c}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.05em}
+td code{font-size:12.5px}
+.dag{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0}
+.task{padding:12px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--c);font:500 13.5px 'JetBrains Mono',monospace;color:var(--c)}
+.task small{display:block;color:var(--muted);font:400 11.5px Inter,sans-serif;margin-top:3px}
+.callout{border-left:3px solid var(--gold);background:rgba(242,193,78,.06);padding:14px 18px;border-radius:0 12px 12px 0;margin:18px 0}
+.callout p{margin:4px 0}
+ul.clean{padding-left:18px}ul.clean li{margin:6px 0;color:#cfd7e4}
+footer{padding:40px 0 64px;color:var(--muted);font-size:14px}
+@media (max-width:780px){.stats{grid-template-columns:repeat(2,1fr)}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Data Engineering · Case Study</div>
+    <h1>Building a Medallion Lakehouse on Azure Databricks</h1>
+    <p class="lede">An end-to-end ETL pipeline that ingests raw CRM and ERP exports, cleans and standardizes them with PySpark, and models them into an analytics-ready star schema — orchestrated as a single Databricks Job with Delta Lake and Unity Catalog underneath.</p>
+    <div class="chips">
+      <span class="chip">Azure Databricks</span><span class="chip">PySpark</span><span class="chip">Spark SQL</span><span class="chip">Delta Lake</span><span class="chip">Unity Catalog</span><span class="chip">Databricks Jobs</span><span class="chip">Git Folders</span>
+    </div>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/pcpc466/databricks_repo">View code on GitHub →</a>
+      <a class="btn ghost" href="#architecture">Jump to architecture</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>6</b><span>source files (CRM + ERP)</span></div>
+      <div class="stat"><b>3</b><span>medallion layers</span></div>
+      <div class="stat"><b>13</b><span>tables across layers</span></div>
+      <div class="stat"><b>1</b><span>orchestrated job</span></div>
+    </div>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#problem">Problem</a><a href="#architecture">Architecture</a><a href="#ingestion">Ingestion</a><a href="#transformation">Transformation</a><a href="#gold">Gold Modeling</a><a href="#orchestration">Orchestration</a><a href="#learnings">Learnings</a>
+</div></nav>
+
+<main class="wrap">
+
+<section id="problem">
+  <h2><span class="n">01</span>The Problem</h2>
+  <p>Sales data lived in two disconnected systems. The <b>CRM</b> held customers, products and sales transactions; the <b>ERP</b> held customer demographics, locations and the product category hierarchy. Neither was clean: whitespace-padded strings, coded values like <code>M</code>/<code>S</code>, dates stored as <code>yyyyMMdd</code> integers (some zero or malformed), missing or negative prices, and customer IDs formatted differently in each system.</p>
+  <p>The goal was a single, trusted <b>star schema</b> — one sales fact table and two conformed dimensions — that BI tools can query directly, rebuilt automatically from the raw files in one run.</p>
+</section>
+
+<section id="architecture">
+  <h2><span class="n">02</span>Architecture</h2>
+  <p class="sub">Medallion pattern: each layer is a Unity Catalog schema of Delta tables under the <code>databricksprash</code> catalog.</p>
+  <div class="flow">
+    <div class="node" style="--c:var(--muted)"><h4>Sources</h4><ul><li>CRM: <code>cust_info</code>, <code>prd_info</code>, <code>sales_details</code></li><li>ERP: <code>CUST_AZ12</code>, <code>LOC_A101</code>, <code>PX_CAT_G1V2</code></li><li>CSV in a UC Volume</li></ul></div>
+    <div class="arrow">→</div>
+    <div class="node" style="--c:var(--bronze)"><h4>Bronze</h4><ul><li>Raw, as-is copy</li><li>Schema inferred</li><li>Full overwrite</li><li><code>bronze_layer_data</code></li></ul></div>
+    <div class="arrow">→</div>
+    <div class="node" style="--c:var(--silver)"><h4>Silver</h4><ul><li>Trimmed &amp; typed</li><li>Codes decoded</li><li>Bad values fixed</li><li>Business-friendly names</li><li><code>silver_layer_data</code></li></ul></div>
+    <div class="arrow">→</div>
+    <div class="node" style="--c:var(--gold)"><h4>Gold</h4><ul><li>Star schema</li><li>Surrogate keys</li><li>CRM + ERP merged</li><li><code>gold_layer_data</code></li></ul></div>
+  </div>
+  <table>
+    <thead><tr><th>Layer</th><th>Tables</th></tr></thead>
+    <tbody>
+      <tr><td style="color:var(--bronze)">Bronze</td><td><code>crm_cust_info</code> <code>crm_prd_info</code> <code>crm_sales_details</code> <code>erp_cust_az12</code> <code>erp_loc_a101</code> <code>erp_px_cat_g1v2</code></td></tr>
+      <tr><td style="color:var(--silver)">Silver</td><td><code>customer_info</code> <code>crm_products</code> <code>crm_sales</code> <code>erp_customers</code> <code>erp_customer_location</code> <code>erp_product_category</code></td></tr>
+      <tr><td style="color:var(--gold)">Gold</td><td><code>dim_customers</code> <code>dim_products</code> <code>fact_sales</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="ingestion">
+  <h2><span class="n">03</span>Data Ingestion — Bronze</h2>
+  <p>Raw CSV exports are uploaded to a <b>Unity Catalog Volume</b>, which gives governed file storage without managing mount points or storage keys. The bronze notebook reads each file with header detection and schema inference, then lands it unchanged as a managed Delta table. Keeping bronze untouched means any downstream bug can be fixed and replayed without re-pulling source data.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · Bronze_layer</span><button onclick="cp(this)">Copy</button></div>
+<pre><code>df = (spark.read
+        .option(<span class="s">"header"</span>, <span class="s">"true"</span>)
+        .option(<span class="s">"inferSchema"</span>, <span class="s">"true"</span>)
+        .csv(<span class="s">"/Volumes/databricksprash/bronze_layer_data/source_system/source_crm/cust_info.csv"</span>))
+
+df.write.mode(<span class="s">"overwrite"</span>).saveAsTable(<span class="s">"bronze_layer_data.crm_cust_info"</span>)</code></pre></div>
+  <p>The same read → write pattern runs for all six sources. Writes use <code>overwrite</code>, so every run is a clean, idempotent full refresh.</p>
+</section>
+
+<section id="transformation">
+  <h2><span class="n">04</span>Transformation &amp; Cleaning — Silver</h2>
+  <p>Each source gets its own silver notebook so cleaning rules stay small, readable and testable. Every notebook follows the same structure: <b>read bronze → trim → fix → rename → sanity check → write Delta</b>.</p>
+
+  <h3>Reusable step: trim every string column</h3>
+  <p>Instead of naming columns one by one, the notebook walks the DataFrame schema and trims whatever is a string — so it keeps working if the source adds columns.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · all silver notebooks</span><button onclick="cp(this)">Copy</button></div>
+<pre><code><span class="k">for</span> field <span class="k">in</span> df.schema.fields:
+    <span class="k">if</span> isinstance(field.dataType, StringType):
+        df = df.withColumn(field.name, trim(col(field.name)))</code></pre></div>
+
+  <h3>Decoding cryptic codes into readable values</h3>
+  <p>CRM stores marital status and gender as single letters in inconsistent case. These are normalized to full words; unknown values pass through untouched instead of being guessed.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · Silver_layer_crm_cust_info</span><button onclick="cp(this)">Copy</button></div>
+<pre><code>df = (df
+  .withColumn(<span class="s">"cst_marital_status"</span>,
+      F.when(F.upper(F.col(<span class="s">"cst_marital_status"</span>)) == <span class="s">"S"</span>, <span class="s">"Single"</span>)
+       .when(F.upper(F.col(<span class="s">"cst_marital_status"</span>)) == <span class="s">"M"</span>, <span class="s">"Married"</span>)
+       .otherwise(F.col(<span class="s">"cst_marital_status"</span>)))
+  .withColumn(<span class="s">"cst_gndr"</span>,
+      F.when(F.upper(F.col(<span class="s">"cst_gndr"</span>)) == <span class="s">"M"</span>, <span class="s">"Male"</span>)
+       .when(F.upper(F.col(<span class="s">"cst_gndr"</span>)) == <span class="s">"F"</span>, <span class="s">"Female"</span>)
+       .otherwise(F.col(<span class="s">"cst_gndr"</span>))))
+
+df = df.filter(col(<span class="s">"cst_id"</span>).isNotNull())   <span class="c"># drop rows with no customer ID</span></code></pre></div>
+
+  <h3>Parsing a composite product key</h3>
+  <p>The CRM product key packs the category and product number into one string (e.g. <code>CO-RF-FR-R92B-58</code>). Splitting it creates a <code>cat_id</code> that matches the ERP category table — the join key that didn't exist before.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · Silver_layer_crm_prd_info</span><button onclick="cp(this)">Copy</button></div>
+<pre><code><span class="c"># first 5 chars → category id, reformatted to match ERP ("CO-RF" → "CO_RF")</span>
+df = df.withColumn(<span class="s">"cat_id"</span>, F.regexp_replace(F.substring(col(<span class="s">"prd_key"</span>), <span class="nm">1</span>, <span class="nm">5</span>), <span class="s">"-"</span>, <span class="s">"_"</span>))
+<span class="c"># the rest → product number used by the sales table</span>
+df = df.withColumn(<span class="s">"prd_key"</span>, F.substring(col(<span class="s">"prd_key"</span>), <span class="nm">7</span>, F.length(col(<span class="s">"prd_key"</span>))))
+
+df = df.withColumn(<span class="s">"prd_cost"</span>, F.coalesce(col(<span class="s">"prd_cost"</span>), F.lit(<span class="nm">0</span>)))   <span class="c"># missing cost → 0</span></code></pre></div>
+
+  <h3>Repairing integer dates</h3>
+  <p>Sales dates arrive as integers like <code>20101229</code>. Zeros and values that aren't exactly 8 digits are invalid, so they become <code>NULL</code> rather than producing nonsense dates; the rest are parsed into real <code>DATE</code> values.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · Silver_layer_sales_details</span><button onclick="cp(this)">Copy</button></div>
+<pre><code>df = df.withColumn(<span class="s">"sls_order_dt"</span>,
+    F.when((col(<span class="s">"sls_order_dt"</span>) == <span class="nm">0</span>) | (length(col(<span class="s">"sls_order_dt"</span>)) != <span class="nm">8</span>), <span class="k">None</span>)
+     .otherwise(F.to_date(col(<span class="s">"sls_order_dt"</span>).cast(<span class="s">"string"</span>), <span class="s">"yyyyMMdd"</span>)))
+<span class="c"># same rule applied to sls_ship_dt and sls_due_dt</span></code></pre></div>
+
+  <h3>Deriving missing or invalid prices</h3>
+  <p>When a price is null or non-positive, it is recomputed from <code>sales ÷ quantity</code>, with a guard against dividing by zero.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · Silver_layer_sales_details</span><button onclick="cp(this)">Copy</button></div>
+<pre><code>df = df.withColumn(<span class="s">"sls_price"</span>,
+    F.when(col(<span class="s">"sls_price"</span>).isNull() | (col(<span class="s">"sls_price"</span>) &lt;= <span class="nm">0</span>),
+        F.when(col(<span class="s">"sls_quantity"</span>) != <span class="nm">0</span>, col(<span class="s">"sls_sales"</span>) / col(<span class="s">"sls_quantity"</span>))
+         .otherwise(<span class="k">None</span>))
+     .otherwise(col(<span class="s">"sls_price"</span>)))</code></pre></div>
+
+  <h3>Making ERP keys match CRM keys</h3>
+  <p>The ERP systems format customer IDs differently (a <code>NAS</code> prefix in one table, dashes in another). Standardizing them is what lets the gold layer join CRM and ERP at all. Future birthdates are nulled and country codes are expanded.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · Silver_erp_cust / Silver_erp_loc</span><button onclick="cp(this)">Copy</button></div>
+<pre><code><span class="c"># "NASAW00011000" → "AW00011000"</span>
+df = df.withColumn(<span class="s">"cid"</span>,
+    F.when(col(<span class="s">"cid"</span>).startswith(<span class="s">"NAS"</span>), F.substring(col(<span class="s">"cid"</span>), <span class="nm">4</span>, F.length(col(<span class="s">"cid"</span>))))
+     .otherwise(col(<span class="s">"cid"</span>)))
+
+df = df.withColumn(<span class="s">"bdate"</span>, F.when(col(<span class="s">"bdate"</span>) &gt; F.current_date(), <span class="k">None</span>).otherwise(col(<span class="s">"bdate"</span>)))
+
+<span class="c"># location table: "AW-00011000" → "AW00011000", country codes → names</span>
+df = df.withColumn(<span class="s">"cid"</span>, F.regexp_replace(col(<span class="s">"cid"</span>), <span class="s">"-"</span>, <span class="s">""</span>))
+df = df.withColumn(<span class="s">"cntry"</span>,
+    F.when(col(<span class="s">"cntry"</span>) == <span class="s">"DE"</span>, <span class="s">"Germany"</span>)
+     .when(col(<span class="s">"cntry"</span>).isin(<span class="s">"US"</span>, <span class="s">"USA"</span>), <span class="s">"United States"</span>)
+     .when((col(<span class="s">"cntry"</span>) == <span class="s">""</span>) | col(<span class="s">"cntry"</span>).isNull(), <span class="s">"n/a"</span>)
+     .otherwise(col(<span class="s">"cntry"</span>)))</code></pre></div>
+
+  <h3>Business-friendly column names</h3>
+  <p>A rename map per table turns source abbreviations into names analysts can read without a data dictionary.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · Silver_layer_sales_details</span><button onclick="cp(this)">Copy</button></div>
+<pre><code>RENAME_MAP = {
+    <span class="s">"sls_ord_num"</span>: <span class="s">"order_number"</span>,  <span class="s">"sls_prd_key"</span>: <span class="s">"product_number"</span>,
+    <span class="s">"sls_cust_id"</span>: <span class="s">"customer_id"</span>,   <span class="s">"sls_order_dt"</span>: <span class="s">"order_date"</span>,
+    <span class="s">"sls_sales"</span>:   <span class="s">"sales_amount"</span>,  <span class="s">"sls_quantity"</span>: <span class="s">"quantity"</span>,  <span class="s">"sls_price"</span>: <span class="s">"price"</span>,
+}
+<span class="k">for</span> old, new <span class="k">in</span> RENAME_MAP.items():
+    df = df.withColumnRenamed(old, new)
+
+df.write.mode(<span class="s">"overwrite"</span>).format(<span class="s">"delta"</span>).saveAsTable(<span class="s">"silver_layer_data.crm_sales"</span>)</code></pre></div>
+
+  <h3>Cleaning rules at a glance</h3>
+  <div class="grid2">
+    <div class="rule"><b>Whitespace</b><span>All string columns trimmed via schema loop</span></div>
+    <div class="rule"><b>Coded values</b><span>M/S, M/F, R/S/T/M decoded to full labels</span></div>
+    <div class="rule"><b>Nulls &amp; keys</b><span>Rows without a customer ID removed; missing cost → 0</span></div>
+    <div class="rule"><b>Dates</b><span>Invalid integer dates → NULL; future birthdates → NULL</span></div>
+    <div class="rule"><b>Derived values</b><span>Bad prices recomputed from sales ÷ quantity</span></div>
+    <div class="rule"><b>Key alignment</b><span>ERP IDs stripped of prefixes/dashes to match CRM</span></div>
+  </div>
+</section>
+
+<section id="gold">
+  <h2><span class="n">05</span>Gold Table Conversion — Star Schema</h2>
+  <p>The gold layer is written in Spark SQL because it's mostly joins. It merges CRM and ERP into conformed dimensions, assigns <b>surrogate keys</b> with <code>ROW_NUMBER()</code>, and builds a fact table that references dimensions by those keys rather than by source-system IDs.</p>
+
+  <h3>dim_customers — merging two systems' view of a customer</h3>
+  <p>CRM is treated as the source of truth for gender; ERP fills the gap only when CRM says <code>n/a</code>. Country and birthdate come from ERP.</p>
+  <div class="code"><div class="bar"><span class="lang">Spark SQL · gold_dim_customers</span><button onclick="cp(this)">Copy</button></div>
+<pre><code><span class="k">SELECT</span>
+  <span class="f">ROW_NUMBER</span>() <span class="k">OVER</span> (<span class="k">ORDER BY</span> ci.customer_id) <span class="k">AS</span> customer_key,   <span class="c">-- surrogate key</span>
+  ci.customer_id, ci.customer_number, ci.first_name, ci.last_name,
+  lo.country,
+  ci.marital_status,
+  <span class="k">CASE WHEN</span> ci.gender &lt;&gt; <span class="s">'n/a'</span> <span class="k">THEN</span> ci.gender            <span class="c">-- CRM is master</span>
+       <span class="k">ELSE</span> <span class="f">COALESCE</span>(ca.gender, <span class="s">'n/a'</span>) <span class="k">END AS</span> gender,      <span class="c">-- ERP as fallback</span>
+  ca.birth_date <span class="k">AS</span> birthdate,
+  ci.created_date <span class="k">AS</span> create_date
+<span class="k">FROM</span> silver_layer_data.customer_info ci
+<span class="k">LEFT JOIN</span> silver_layer_data.erp_customers ca         <span class="k">ON</span> ci.customer_number = ca.customer_number
+<span class="k">LEFT JOIN</span> silver_layer_data.erp_customer_location lo <span class="k">ON</span> ci.customer_number = lo.customer_number</code></pre></div>
+
+  <h3>dim_products — current products with their category hierarchy</h3>
+  <p>Only active products (no end date) are kept, enriched with category, subcategory and maintenance flag from ERP.</p>
+  <div class="code"><div class="bar"><span class="lang">Spark SQL · gold_dim_products</span><button onclick="cp(this)">Copy</button></div>
+<pre><code><span class="k">SELECT</span>
+  <span class="f">ROW_NUMBER</span>() <span class="k">OVER</span> (<span class="k">ORDER BY</span> cp.start_date, cp.product_number) <span class="k">AS</span> product_key,
+  cp.product_id, cp.product_number, cp.product_name,
+  cp.category_id, cat.category, cat.subcategory, cat.maintenance_flag,
+  cp.product_line, cp.start_date
+<span class="k">FROM</span> silver_layer_data.crm_products cp
+<span class="k">LEFT JOIN</span> silver_layer_data.erp_product_category cat <span class="k">ON</span> cp.category_id = cat.category_id
+<span class="k">WHERE</span> cp.end_date <span class="k">IS NULL</span>   <span class="c">-- drop historical product versions</span></code></pre></div>
+
+  <h3>fact_sales — transactions keyed to the dimensions</h3>
+  <div class="code"><div class="bar"><span class="lang">Spark SQL · gold_fact_sales</span><button onclick="cp(this)">Copy</button></div>
+<pre><code><span class="k">SELECT</span>
+  cs.order_number, pr.product_key, cu.customer_key,
+  cs.order_date, cs.ship_date, cs.due_date,
+  cs.sales_amount, cs.quantity, cs.price
+<span class="k">FROM</span> silver_layer_data.crm_sales cs
+<span class="k">LEFT JOIN</span> gold_layer_data.dim_products  pr <span class="k">ON</span> cs.product_number = pr.product_number
+<span class="k">LEFT JOIN</span> gold_layer_data.dim_customers cu <span class="k">ON</span> cs.customer_id    = cu.customer_id</code></pre></div>
+  <div class="code"><div class="bar"><span class="lang">PySpark · write to gold</span><button onclick="cp(this)">Copy</button></div>
+<pre><code>df = spark.sql(query)
+df.write.mode(<span class="s">"overwrite"</span>).format(<span class="s">"delta"</span>).saveAsTable(<span class="s">"gold_layer_data.fact_sales"</span>)</code></pre></div>
+
+  <table>
+    <thead><tr><th>Gold table</th><th>Grain</th><th>Key</th><th>Built from</th></tr></thead>
+    <tbody>
+      <tr><td><code>dim_customers</code></td><td>One row per customer</td><td><code>customer_key</code></td><td>CRM customers + ERP demographics + ERP location</td></tr>
+      <tr><td><code>dim_products</code></td><td>One row per active product</td><td><code>product_key</code></td><td>CRM products + ERP category</td></tr>
+      <tr><td><code>fact_sales</code></td><td>One row per order line</td><td><code>order_number</code></td><td>CRM sales → both dimensions</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="orchestration">
+  <h2><span class="n">06</span>Orchestration</h2>
+  <p>The pipeline runs as one <b>Databricks Job</b>, <code>Pipelines_running</code>, with three dependent tasks. Each layer only starts when the previous one succeeds, so gold is never built on half-refreshed silver data.</p>
+  <div class="dag">
+    <div class="task" style="--c:var(--bronze)">bronze_layer<small>ingest 6 CSVs</small></div><span class="arrow">→</span>
+    <div class="task" style="--c:var(--silver)">silver_layer<small>6 cleaning notebooks</small></div><span class="arrow">→</span>
+    <div class="task" style="--c:var(--gold)">gold_layer<small>2 dims → 1 fact</small></div>
+  </div>
+  <p>Inside a layer, a small orchestration notebook fans out to the per-table notebooks with <code>dbutils.notebook.run</code>. A failure is logged per notebook rather than silently swallowed, which makes the job's run output easy to debug.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · silver_orchestration</span><button onclick="cp(this)">Copy</button></div>
+<pre><code>notebooks = [
+    <span class="s">"./crm/Silver_layer_crm_cust_info"</span>, <span class="s">"./crm/Silver_layer_crm_prd_info"</span>,
+    <span class="s">"./crm/Silver_layer_sales_details"</span>, <span class="s">"./erp/Silver_erp_cust"</span>,
+    <span class="s">"./erp/Silver_erp_loc"</span>,             <span class="s">"./erp/Silver_erp_px_car"</span>,
+]
+<span class="k">for</span> nb <span class="k">in</span> notebooks:
+    print(<span class="s">f"Running </span>{nb}<span class="s">"</span>)
+    <span class="k">try</span>:
+        dbutils.notebook.run(nb, timeout_seconds=<span class="nm">3600</span>)
+        print(<span class="s">f"Finished </span>{nb}<span class="s">"</span>)
+    <span class="k">except</span> Exception <span class="k">as</span> e:
+        print(<span class="s">f"Failed to execute </span>{nb}<span class="s">: </span>{e}<span class="s">"</span>)</code></pre></div>
+  <p>Gold runs its notebooks in a fixed order — dimensions first, then the fact table, because the fact table looks up the dimensions' surrogate keys.</p>
+  <div class="code"><div class="bar"><span class="lang">PySpark · gold_orchestration</span><button onclick="cp(this)">Copy</button></div>
+<pre><code><span class="k">for</span> nb <span class="k">in</span> [<span class="s">"./gold_dim_customers"</span>, <span class="s">"./gold_dim_products"</span>, <span class="s">"./gold_fact_sales"</span>]:
+    print(<span class="s">f"Running </span>{nb}<span class="s">"</span>)
+    dbutils.notebook.run(nb, timeout_seconds=<span class="nm">0</span>)</code></pre></div>
+  <p>All code lives in a <b>Databricks Git folder</b> synced to GitHub, so every change to a cleaning rule is versioned and reviewable.</p>
+</section>
+
+<section id="learnings">
+  <h2><span class="n">07</span>Key Takeaways</h2>
+  <ul class="clean">
+    <li><b>Keep bronze raw.</b> Because nothing is cleaned on ingest, fixing a silver rule only means re-running from bronze — never re-sourcing data.</li>
+    <li><b>Key alignment is the real integration work.</b> The joins in gold only work because silver standardized ERP and CRM IDs and split the composite product key.</li>
+    <li><b>Surrogate keys decouple analytics from source systems.</b> The fact table doesn't care how CRM or ERP format their IDs.</li>
+    <li><b>Order matters in orchestration.</b> Task dependencies (layer to layer) and notebook order (dims before fact) keep every run consistent.</li>
+  </ul>
+  <div class="callout">
+    <p><b>Next steps</b></p>
+    <p>Switch full overwrites to incremental <code>MERGE INTO</code> loads, add automated data-quality checks (row counts, null and key-integrity tests) as a job task, and schedule the job to run on a trigger when new files land in the Volume.</p>
+  </div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Built by <b style="color:var(--text)">Prashant Singh Chauhan</b> · Data Analyst &amp; BI Developer, Toronto · <a href="https://github.com/pcpc466/databricks_repo">Source on GitHub</a></div></footer>
+
+<script>
+function cp(b){const t=b.closest('.code').querySelector('pre').innerText;
+  try{navigator.clipboard.writeText(t).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1400)}).catch(()=>{b.textContent='Select & copy'})}catch(e){b.textContent='Select & copy'}}
+</script>
+</body>
+</html>
